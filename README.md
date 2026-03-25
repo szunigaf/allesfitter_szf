@@ -1,17 +1,42 @@
-![](docs/source/_static/images/promo.gif)
+# allesfitter — Local Fork
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MNGuenther/allesfitter/master?labpath=allesfitter%2FGUI.ipynb)
+> **This is a personal fork of [allesfitter](https://github.com/MNGuenther/allesfitter) maintained for local use.**  
+> It includes modifications to ensure compatibility with modern Python and package versions. It is not intended as a general-purpose distribution.
 
-[German-ish for *everything-fitter*]
+---
 
-*allesfitter* (Günther & Daylan, 2019, ascl:1903.003) is a public and user-friendly astronomy software package for modeling photometric and RV data. It can accommodate multiple exoplanets, multi-star systems, star spots, stellar flares, and various noise models. A graphical user interface allows to define all input. Then, *allesfitter* automatically runs a nested sampling or MCMC fit, and produces ascii tables, latex tables, and plots. For all this, *allesfitter* constructs an inference framework that unites the versatile packages *ellc* (light curve and RV models; Maxted 2016), *aflare* (flare model; Davenport et al. 2014), *dynesty* (static and dynamic nested sampling; Speagle 2019), *emcee* (Markov Chain Monte Carlo sampling; Foreman-Mackey et al. 2013) and *celerite* (Gaussian Process models; Foreman-Mackey et al. 2017). 
-If you use *allesfitter* or parts of it in your work, please cite and acknowledge all software as detailed below.
+## About this fork
 
-**Documentation:**
+This repository is a locally modified version of *allesfitter* (Günther & Daylan, 2019, ascl:1903.003). Changes from the original include:
 
-https://www.allesfitter.com/
+- Compatibility fixes for **NumPy 2.x** (`np.VisibleDeprecationWarning` and `np.RankWarning` replacements)
+- Installation patches for modern dependency versions (`llvmlite`, `ellc`, `seaborn`, `statsmodels`)
 
-**Allesfitter citations**:
+For all official documentation, tutorials, and scientific use, please refer to the **original repository and its resources**:
+
+- 📖 **Documentation:** https://www.allesfitter.com/
+- 💻 **Original repository:** https://github.com/MNGuenther/allesfitter
+- 📚 **Citations:** see below
+
+---
+
+## Installation
+
+To install this working fork locally, please follow the steps described in **[INSTALLATION.md](INSTALLATION.md)**.
+
+---
+
+## Documentation
+
+All documentation, tutorials, and usage guides are available at the original project website:
+
+🔗 https://www.allesfitter.com/
+
+---
+
+## Citations
+
+If you use *allesfitter* or any part of it in your work, please cite the original authors:
 
 Please cite both the paper and the code, like `\citep{allesfitter-paper, allesfitter-code}`, with:
 
@@ -33,7 +58,7 @@ Please cite both the paper and the code, like `\citep{allesfitter-paper, allesfi
      adsurl = {https://ui.adsabs.harvard.edu/abs/2021ApJS..254...13G},
      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
-    
+
     @MISC{allesfitter-code,
      author = {{G{\"u}nther}, Maximilian~N. and {Daylan}, Tansu},
      title = "{Allesfitter: Flexible Star and Exoplanet Inference From Photometry and Radial Velocity}",
@@ -54,7 +79,7 @@ Please cite both the paper and the code, like `\citep{allesfitter-paper, allesfi
     - dynesty: Speagel, J. (2019), arXiv:1904.02180
     - emcee: Foreman-Mackey, D., et al. (2013), Publications of the Astronomical Society of the Pacific, 125, 306
     - celerite: Foreman-Mackey, D., et al. (2017), The Astronomical Journal, 154, 220
-    - corner: Foreman-Mackey, D., et al. 
+    - corner: Foreman-Mackey, D., et al.
     - python: Rossum G. (1995), Technical Report, Python Reference Manual, Amsterdam, The Netherlands
     - numpy: van der Walt S., et al. (2011), Comput. Sci. Eng., 13, 22
     - scipy: Jones E. et al. (2001), SciPy: Open Source Scientific tools for Python. Available at: http://www.scipy.org/
@@ -62,10 +87,10 @@ Please cite both the paper and the code, like `\citep{allesfitter-paper, allesfi
     - tqdm: doi:10.5281/zenodo.1468033
     - seaborn: https://seaborn.pydata.org/index.html
 
-**Contributors**: 
+---
+
+## Original authors
 
 Maximilian N. Günther & Tansu Daylan
 
-**License**:
-
-The software is freely available at https://github.com/MNGuenther/allesfitter under the MIT License. Feedback and contributions are very welcome.
+**License:** MIT — see https://github.com/MNGuenther/allesfitter
