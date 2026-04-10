@@ -342,10 +342,35 @@ def update_params(theta):
     #::: lastly, deal with coupled params again after updates
     #=========================================================================
     for i, key in enumerate(config.BASEMENT.allkeys):
-        if isinstance(config.BASEMENT.coupled_with[i], str) and (len(config.BASEMENT.coupled_with[i])>0):
-            params[key] = params[config.BASEMENT.coupled_with[i]]
-            
-            
+        cw = config.BASEMENT.coupled_with[i]
+        if isinstance(cw, str) and (len(cw)>0):
+            if cw.startswith('~'):
+                # complement coupling: param = 1 - other_param
+                params[key] = 1.0 - params[cw[1:]]
+            else:
+                params[key] = params[cw]
+
+    #=========================================================================
+    #::: derive per-companion dilutions from flux_ratio_FILTER (binary mode)
+    #::: flux_ratio_FILTER = beta = F_B / F_A  (fainter over brighter)
+    #::: D(planet orbiting A) = beta / (1 + beta)
+    #::: D(planet orbiting B) = 1 / (1 + beta)
+    #::: Only runs when the user has added flux_ratio_* entries to params.csv
+    #::: Automatically overrides any dil_COMPANION_INST values for affected companions
+    #=========================================================================
+    for key in list(params.keys()):
+        if key.startswith('flux_ratio_') and params[key] is not None:
+            filter_band = key[len('flux_ratio_'):]
+            beta = params[key]
+            for inst in config.BASEMENT.settings['inst_phot']:
+                if config.BASEMENT.settings['inst_filter'][inst] == filter_band:
+                    for companion in config.BASEMENT.settings['companions_phot']:
+                        star = config.BASEMENT.settings['companion_host'][companion]
+                        if star in ('host_A', 'host'):      # planet orbits bright star
+                            params['dil_'+companion+'_'+inst] = beta / (1. + beta)
+                        else:                               # planet orbits faint star (host_B)
+                            params['dil_'+companion+'_'+inst] = 1. / (1. + beta)
+
     return params
 
 
@@ -519,7 +544,9 @@ def flux_subfct_ellc(params, inst, companion, xx=None, settings=None, t_exp=None
                                     )
   
         #::: combine the host and companion fluxes, and account for dilution
-        model_flux = 1. + ( (model_flux1+model_flux2-1.) * (1.-params['dil_'+inst]) )  
+        #::: use per-companion dilution if available (binary mode), else fall back to per-instrument
+        _dil_key = 'dil_'+companion+'_'+inst if ('dil_'+companion+'_'+inst in params and params['dil_'+companion+'_'+inst] is not None) else 'dil_'+inst
+        model_flux = 1. + ( (model_flux1+model_flux2-1.) * (1.-params[_dil_key]) )  
 
 
     #-------------------------------------------------------------------------- 
@@ -679,7 +706,10 @@ def flux_subfct_flares(params, inst, companion, xx=None, settings=None, return_f
     #-------------------------------------------------------------------------- 
     if settings['N_flares'] > 0:
         for i in range(1,settings['N_flares']+1):
-            model_flux += (1.-params['dil_'+inst]) * aflare1(xx, params['flare_tpeak_'+str(i)], params['flare_fwhm_'+str(i)], params['flare_ampl_'+str(i)], upsample=True, uptime=10)
+            #::: use per-flare host star dilution if in binary mode, else fall back to per-instrument
+            _flare_host = settings['flare_host'].get(i, 'host_A')
+            _fdil_key = 'dil_'+_flare_host+'_'+inst if ('dil_'+_flare_host+'_'+inst in params and params['dil_'+_flare_host+'_'+inst] is not None) else 'dil_'+inst
+            model_flux += (1.-params[_fdil_key]) * aflare1(xx, params['flare_tpeak_'+str(i)], params['flare_fwhm_'+str(i)], params['flare_ampl_'+str(i)], upsample=True, uptime=10)
     
     
     #-------------------------------------------------------------------------- 
@@ -741,7 +771,7 @@ def flux_fct_piecewise(params, inst, companion, xx=None, settings=None):
                                   radius_2 =    params[companion+'_radius_2'], 
                                   sbratio =     params[companion+'_sbratio_'+inst], 
                                   incl =        params[companion+'_incl'], 
-                                  light_3 =     params['dil_'+inst] / (1.-params['dil_'+inst]),
+                                  light_3 =     params[('dil_'+companion+'_'+inst) if ('dil_'+companion+'_'+inst in params and params['dil_'+companion+'_'+inst] is not None) else ('dil_'+inst)] / (1.-params[('dil_'+companion+'_'+inst) if ('dil_'+companion+'_'+inst in params and params['dil_'+companion+'_'+inst] is not None) else ('dil_'+inst)]),
                                   t_zero =      params[companion+'_epoch'] + params[companion+'_ttv_transit_'+str(n_transit+1)],
                                   period =      params[companion+'_period'],
                                   a =           params[companion+'_a'],

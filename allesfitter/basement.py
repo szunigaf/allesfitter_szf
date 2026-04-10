@@ -203,7 +203,25 @@ class Basement():
         
         self.settings['companions_all']  = list(np.unique(self.settings['companions_phot']+self.settings['companions_rv'])) #sorted by b, c, d...
         self.settings['inst_all'] = list(unique( self.settings['inst_phot']+self.settings['inst_rv']+self.settings['inst_rv2'] )) #sorted like user input
-    
+
+        #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        #::: Binary host star mapping (optional; backwards compatible)
+        #::: - 'companion_X_host' in settings.csv maps each companion to a host star
+        #:::   Valid values: 'host_A' (default, alias for original 'host') or 'host_B'
+        #::: - 'inst_filter_INST' maps each instrument to a filter band label
+        #:::   Used to share flux_ratio_FILTER across instruments with the same filter
+        #:::   Defaults to the instrument name itself (no sharing)
+        #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        self.settings['companion_host'] = {}
+        for companion in self.settings['companions_all']:
+            key = 'companion_'+companion+'_host'
+            self.settings['companion_host'][companion] = self.settings.get(key, 'host_A')
+
+        self.settings['inst_filter'] = {}
+        for inst in self.settings['inst_all']:
+            key = 'inst_filter_'+inst
+            self.settings['inst_filter'][inst] = self.settings.get(key, inst)
+
         if len(self.settings['inst_phot'])==0 and len(self.settings['companions_phot'])>0:
             raise ValueError('No photometric instrument is selected, but photometric companions are given.')
         if len(self.settings['inst_rv'])==0 and len(self.settings['companions_rv'])>0:
@@ -599,12 +617,20 @@ class Basement():
                     
         
         #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        #::: Number of flares
+        #::: Number of flares and per-flare host star assignment
+        #::: - 'flare_N_host' in settings.csv assigns flare N to a host star
+        #:::   Valid values: 'host_A' (default) or 'host_B'
+        #:::   Dilution is then applied from that star's perspective
         #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
         if 'N_flares' in self.settings and len(self.settings['N_flares'])>0:
             self.settings['N_flares'] = int(self.settings['N_flares'])
         else:
             self.settings['N_flares'] = 0
+
+        self.settings['flare_host'] = {}
+        for i in range(1, self.settings['N_flares']+1):
+            key = 'flare_'+str(i)+'_host'
+            self.settings['flare_host'][i] = self.settings.get(key, 'host_A')
         
         
         
@@ -736,6 +762,9 @@ class Basement():
                 validate(companion+'_f_s', 0., -1, 1)
                 validate(companion+'_f_c', 0., -1, 1)
                 validate('dil_'+inst, 0., -np.inf, np.inf)
+                #::: per-companion dilution (optional; overrides dil_INST for that companion)
+                #::: used when companions orbit different stars in a binary system
+                validate('dil_'+companion+'_'+inst, None, -np.inf, np.inf)
                 
                 #::: limb darkenings, u-space
                 validate('host_ldc_u1_'+inst, None, 0, 1)
@@ -886,7 +915,13 @@ class Basement():
             
         for i, key in enumerate(self.allkeys):
             if isinstance(self.coupled_with[i], str) and (len(self.coupled_with[i])>0):
-                self.params[key] = self.params[self.coupled_with[i]]           #luser proof: automatically set the values of the params coupled to another param
+                cw = self.coupled_with[i]
+                if cw.startswith('~'):
+                    # complement coupling: param = 1 - other_param
+                    # e.g. dil_d_INST coupled_with ~flux_ratio_r
+                    self.params[key] = 1.0 - self.params[cw[1:]]
+                else:
+                    self.params[key] = self.params[cw]
                 buf['fit'][i] = 0                                              #luser proof: automatically set fit=0 for the params coupled to another param
         
         
