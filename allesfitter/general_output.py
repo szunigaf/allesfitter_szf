@@ -281,7 +281,8 @@ def afplot(samples, companion):
         else:
             fig, axes = plt.subplots(N_inst,3,figsize=(6*3,4*N_inst))
             styles = ['full','phase','phasezoom']
-        axes = np.atleast_2d(axes)
+        # ensure axes is always shape (N_inst, N_styles) regardless of N_inst or N_styles being 1
+        axes = np.array(axes).reshape(N_inst, len(styles))
         
         for i,inst in enumerate(config.BASEMENT.settings['inst_all']):
             for j,style in enumerate(styles):

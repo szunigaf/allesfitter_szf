@@ -447,7 +447,17 @@ class Basement():
                     self.settings['host_ld_space_'+inst] = 'q'
                     
                 if is_empty_or_none(companion+'_ld_space_'+inst):
-                    self.settings[companion+'_ld_space_'+inst] = 'q'        
+                    self.settings[companion+'_ld_space_'+inst] = 'q'
+
+                #::: host_B defaults — mirrors host_A (used when companion_X_host=host_B)
+                if is_empty_or_none('host_B_ld_law_'+inst):
+                    self.settings['host_B_ld_law_'+inst] = self.settings.get('host_ld_law_'+inst, None)
+                if is_empty_or_none('host_B_ld_space_'+inst):
+                    self.settings['host_B_ld_space_'+inst] = self.settings.get('host_ld_space_'+inst, 'q')
+                if 'host_B_grid_'+inst not in self.settings:
+                    self.settings['host_B_grid_'+inst] = self.settings.get('host_grid_'+inst, 'default')
+                if 'host_B_shape_'+inst not in self.settings:
+                    self.settings['host_B_shape_'+inst] = self.settings.get('host_shape_'+inst, 'sphere')
                     
                 if 'host_shape_'+inst not in self.settings: 
                     self.settings['host_shape_'+inst] = 'sphere'
@@ -711,7 +721,7 @@ class Basement():
         def validate(key, default, default_min, default_max):
             if (key in self.params) and (self.params[key] is not None):
                 if (self.params[key] < default_min) or (self.params[key] > default_max):
-                    raise ValueError("User input for "+key+" is "+self.params+" but must lie within ["+str(default_min)+","+str(default_max)+"].")
+                    raise ValueError("User input for "+key+" is "+str(self.params[key])+" but must lie within ["+str(default_min)+","+str(default_max)+"].")
             if (key not in self.params):
                 self.params[key] = default
         
@@ -771,20 +781,28 @@ class Basement():
                 validate('host_ldc_u2_'+inst, None, 0, 1)
                 validate('host_ldc_u3_'+inst, None, 0, 1)
                 validate('host_ldc_u4_'+inst, None, 0, 1)
+                validate('host_B_ldc_u1_'+inst, None, 0, 1)
+                validate('host_B_ldc_u2_'+inst, None, 0, 1)
+                validate('host_B_ldc_u3_'+inst, None, 0, 1)
+                validate('host_B_ldc_u4_'+inst, None, 0, 1)
                 validate(companion+'_ldc_u1_'+inst, None, 0, 1)
                 validate(companion+'_ldc_u2_'+inst, None, 0, 1)
                 validate(companion+'_ldc_u3_'+inst, None, 0, 1)
                 validate(companion+'_ldc_u4_'+inst, None, 0, 1)
 
                 #::: limb darkenings, q-space
-                validate('host_ldc_q1_'+inst, None, 0, 1)
-                validate('host_ldc_q2_'+inst, None, 0, 1)
-                validate('host_ldc_q3_'+inst, None, 0, 1)
-                validate('host_ldc_q4_'+inst, None, 0, 1)
-                validate(companion+'_ldc_q1_'+inst, None, 0, 1)
-                validate(companion+'_ldc_q2_'+inst, None, 0, 1)
-                validate(companion+'_ldc_q3_'+inst, None, 0, 1)
-                validate(companion+'_ldc_q4_'+inst, None, 0, 1)
+                validate('host_ldc_q1_'+inst, None, 0, np.inf)
+                validate('host_ldc_q2_'+inst, None, 0, np.inf)
+                validate('host_ldc_q3_'+inst, None, 0, np.inf)
+                validate('host_ldc_q4_'+inst, None, 0, np.inf)
+                validate('host_B_ldc_q1_'+inst, None, 0, np.inf)
+                validate('host_B_ldc_q2_'+inst, None, 0, np.inf)
+                validate('host_B_ldc_q3_'+inst, None, 0, np.inf)
+                validate('host_B_ldc_q4_'+inst, None, 0, np.inf)
+                validate(companion+'_ldc_q1_'+inst, None, 0, np.inf)
+                validate(companion+'_ldc_q2_'+inst, None, 0, np.inf)
+                validate(companion+'_ldc_q3_'+inst, None, 0, np.inf)
+                validate(companion+'_ldc_q4_'+inst, None, 0, np.inf)
                 
                 #::: catch exceptions
                 if self.params[companion+'_period'] is None:
@@ -804,6 +822,14 @@ class Basement():
                 validate('host_heat_'+inst, None, -np.inf, np.inf)
                 validate('host_lambda', None, -np.inf, np.inf)
                 validate('host_vsini', None, -np.inf, np.inf)
+                #::: host_B stellar params (for companions assigned to the secondary via companion_X_host=host_B)
+                validate('host_B_gdc_'+inst, None, 0., 1.)
+                validate('host_B_rotfac_'+inst, 1., 0., np.inf)
+                validate('host_B_hf_'+inst, 1.5, -np.inf, np.inf)
+                validate('host_B_bfac_'+inst, None, -np.inf, np.inf)
+                validate('host_B_heat_'+inst, None, -np.inf, np.inf)
+                validate('host_B_lambda', None, -np.inf, np.inf)
+                validate('host_B_vsini', None, -np.inf, np.inf)
                 
                 validate(companion+'_gdc_'+inst, None, 0., 1.)
                 validate(companion+'_rotfac_'+inst, 1., 0., np.inf)
@@ -816,6 +842,8 @@ class Basement():
                 #::: special parameters (list type)
                 if 'host_spots_'+inst not in self.params:
                     self.params['host_spots_'+inst] = None
+                if 'host_B_spots_'+inst not in self.params:
+                    self.params['host_B_spots_'+inst] = None
                 if companion+'_spots_'+inst not in self.params:
                     self.params[companion+'_spots_'+inst] = None
                     
@@ -1375,20 +1403,50 @@ class Basement():
     ###############################################################################
     #::: stellar priors
     ###############################################################################
+    def _load_one_stellar_prior(self, csvpath, density_key, params_star_key, N_samples=10000):
+        """Helper: load one params_star*.csv and register a density prior under density_key."""
+        buf = np.genfromtxt(csvpath, delimiter=',', names=True, dtype=None, encoding='utf-8', comments='#')
+        radius = simulate_PDF(buf['R_star'], buf['R_star_lerr'], buf['R_star_uerr'], size=N_samples, plot=False) * 6.957e10  # cgs
+        mass   = simulate_PDF(buf['M_star'], buf['M_star_lerr'], buf['M_star_uerr'], size=N_samples, plot=False) * 1.9884754153381438e+33  # cgs
+        volume  = (4./3.) * np.pi * radius**3  # cgs
+        density = mass / volume  # cgs
+        self.params_star[params_star_key] = {
+            'R_star_median': buf['R_star'],
+            'R_star_lerr':   buf['R_star_lerr'],
+            'R_star_uerr':   buf['R_star_uerr'],
+            'M_star_median': buf['M_star'],
+            'M_star_lerr':   buf['M_star_lerr'],
+            'M_star_uerr':   buf['M_star_uerr'],
+        }
+        self.external_priors[density_key] = [
+            'normal',
+            np.median(density),
+            np.max([np.median(density) - np.percentile(density, 16),
+                    np.percentile(density, 84) - np.median(density)])
+        ]  # cgs
+
     def load_stellar_priors(self, N_samples=10000):
-        if os.path.exists(os.path.join(self.datadir,'params_star.csv')) and (self.settings['use_host_density_prior'] is True):
-            buf = np.genfromtxt( os.path.join(self.datadir,'params_star.csv'), delimiter=',', names=True, dtype=None, encoding='utf-8', comments='#' )
-            radius = simulate_PDF(buf['R_star'], buf['R_star_lerr'], buf['R_star_uerr'], size=N_samples, plot=False) * 6.957e10 #in cgs
-            mass = simulate_PDF(buf['M_star'], buf['M_star_lerr'], buf['M_star_uerr'], size=N_samples, plot=False) * 1.9884754153381438e+33 #in cgs
-            volume = (4./3.)*np.pi*radius**3 #in cgs
-            density = mass / volume #in cgs
-            self.params_star = {'R_star_median':buf['R_star'],
-                                'R_star_lerr':buf['R_star_lerr'],
-                                'R_star_uerr':buf['R_star_uerr'],
-                                'M_star_median':buf['M_star'],
-                                'M_star_lerr':buf['M_star_lerr'],
-                                'M_star_uerr':buf['M_star_uerr']
-                                }
-            self.external_priors['host_density'] = ['normal', np.median(density), np.max( [np.median(density)-np.percentile(density,16), np.percentile(density,84)-np.median(density)] ) ] #in cgs
-            
-            
+        self.params_star = {}
+
+        # --- Binary host: params_starA.csv / params_starB.csv ---
+        # If either exists, load per-star density priors (host_A_density, host_B_density).
+        # These are used when companions are assigned to different binary components via
+        # companion_X_host in settings.csv.
+        _starA_path = os.path.join(self.datadir, 'params_starA.csv')
+        _starB_path = os.path.join(self.datadir, 'params_starB.csv')
+        _star_path  = os.path.join(self.datadir, 'params_star.csv')
+
+        if (os.path.exists(_starA_path) or os.path.exists(_starB_path)) and (self.settings['use_host_density_prior'] is True):
+            if os.path.exists(_starA_path):
+                self._load_one_stellar_prior(_starA_path, 'host_A_density', 'host_A', N_samples=N_samples)
+            if os.path.exists(_starB_path):
+                self._load_one_stellar_prior(_starB_path, 'host_B_density', 'host_B', N_samples=N_samples)
+
+        elif os.path.exists(_star_path) and (self.settings['use_host_density_prior'] is True):
+            # --- Legacy single-star mode ---
+            self._load_one_stellar_prior(_star_path, 'host_density', 'host', N_samples=N_samples)
+            # Also expose under params_star root keys for backward compatibility
+            if 'host' in self.params_star:
+                self.params_star.update(self.params_star['host'])
+
+

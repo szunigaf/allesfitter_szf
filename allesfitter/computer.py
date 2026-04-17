@@ -153,7 +153,11 @@ def update_params(theta):
     #::: limb darkening, per instrument
     #=========================================================================
     for inst in config.BASEMENT.settings['inst_all']:
-        for obj in ['host']+config.BASEMENT.settings['companions_all']:
+        # Include host_B if any companion is assigned to it
+        _extra_hosts = ['host_B'] if any(
+            v == 'host_B' for v in config.BASEMENT.settings.get('companion_host', {}).values()
+        ) else []
+        for obj in ['host'] + _extra_hosts + config.BASEMENT.settings['companions_all']:
         
             
             #::: if we sampled in q-space, convert the params to u-space for ellc
@@ -285,11 +289,25 @@ def update_params(theta):
     #::: see also Seager & Mallen-Ornelas 2003 and Winn 2010, Eq. 30
     #::: only do this if it's actually requested by the user
     #=========================================================================
-    if (config.BASEMENT.settings['use_host_density_prior'] is True) \
-        and ('host_density' in config.BASEMENT.external_priors):
-    
+    _use_density = config.BASEMENT.settings['use_host_density_prior'] is True
+    _has_density_single = 'host_density' in config.BASEMENT.external_priors
+    _has_density_A      = 'host_A_density' in config.BASEMENT.external_priors
+    _has_density_B      = 'host_B_density' in config.BASEMENT.external_priors
+    _has_density_binary = _has_density_A or _has_density_B
+
+    if _use_density and (_has_density_single or _has_density_binary):
+
             for companion in config.BASEMENT.settings['companions_phot']:
-        
+
+                # Determine which star this companion orbits (binary host support)
+                _c_host = config.BASEMENT.settings.get('companion_host', {}).get(companion, 'host_A')
+                # Map host label to the correct params_star sub-dict key
+                if _has_density_binary:
+                    _ps_key = _c_host  # 'host_A' or 'host_B'
+                else:
+                    _ps_key = 'host'
+                _ps = config.BASEMENT.params_star.get(_ps_key, config.BASEMENT.params_star)
+
                 # """
                 # If we have transit and RV data, we can constrain each companion's mass 
                 # and density directly during sampling
@@ -301,10 +319,10 @@ def update_params(theta):
                                                  P = params[companion+'_period'], 
                                                  incl = params[companion+'_incl'], 
                                                  ecc = params[companion+'_ecc'], 
-                                                 M_host = config.BASEMENT.params_star['M_star_median'], 
+                                                 M_host = _ps['M_star_median'], 
                                                  return_unit = u.Msun) #in Msun
                     
-                    R_comp = params[companion+'_rr'] * config.BASEMENT.params_star['R_star_median'] #in Rsun
+                    R_comp = params[companion+'_rr'] * _ps['R_star_median'] #in Rsun
                     
                     rho_comp = calc_rho(R = R_comp, 
                                         M = M_comp, 
@@ -497,6 +515,10 @@ def flux_subfct_ellc(params, inst, companion, xx=None, settings=None, t_exp=None
     #-------------------------------------------------------------------------- 
     #::: if: planet and EB lightcurve model
     #-------------------------------------------------------------------------- 
+    #::: which binary star does this companion orbit? (host_A or host_B)
+    _c_host = settings.get('companion_host', {}).get(companion, 'host')
+    if _c_host == 'host_A':
+        _c_host = 'host'  # 'host' is the allesfitter internal name for host_A params
     if (params[companion+'_rr'] is not None) and (params[companion+'_rr'] > 0):
         model_flux1, model_flux2 = ellc.fluxes(
                                     t_obs =       xx, 
@@ -511,33 +533,33 @@ def flux_subfct_ellc(params, inst, companion, xx=None, settings=None, t_exp=None
                                     q =           params[companion+'_q'],
                                     f_c =         params[companion+'_f_c'],
                                     f_s =         params[companion+'_f_s'],
-                                    ldc_1 =       params['host_ldc_'+inst],
+                                    ldc_1 =       params[_c_host+'_ldc_'+inst],
                                     ldc_2 =       params[companion+'_ldc_'+inst],
-                                    gdc_1 =       params['host_gdc_'+inst],
+                                    gdc_1 =       params[_c_host+'_gdc_'+inst],
                                     gdc_2 =       params[companion+'_gdc_'+inst],
                                     didt =        params['didt_'+inst], 
                                     domdt =       params['domdt_'+inst], 
-                                    rotfac_1 =    params['host_rotfac_'+inst], 
+                                    rotfac_1 =    params[_c_host+'_rotfac_'+inst], 
                                     rotfac_2 =    params[companion+'_rotfac_'+inst], 
-                                    hf_1 =        params['host_hf_'+inst], #1.5, 
+                                    hf_1 =        params[_c_host+'_hf_'+inst], #1.5, 
                                     hf_2 =        params[companion+'_hf_'+inst], #1.5,
-                                    bfac_1 =      params['host_bfac_'+inst],
+                                    bfac_1 =      params[_c_host+'_bfac_'+inst],
                                     bfac_2 =      params[companion+'_bfac_'+inst], 
-                                    heat_1 =      divide(params['host_heat_'+inst],2.),
+                                    heat_1 =      divide(params[_c_host+'_heat_'+inst],2.),
                                     heat_2 =      divide(params[companion+'_heat_'+inst],2.),
-                                    lambda_1 =    params['host_lambda'], 
+                                    lambda_1 =    params[_c_host+'_lambda'], 
                                     lambda_2 =    params[companion+'_lambda'], 
-                                    vsini_1 =     params['host_vsini'],
+                                    vsini_1 =     params[_c_host+'_vsini'],
                                     vsini_2 =     params[companion+'_vsini'], 
                                     t_exp =       t_exp,
                                     n_int =       n_int,
-                                    grid_1 =      settings['host_grid_'+inst],
+                                    grid_1 =      settings[_c_host+'_grid_'+inst],
                                     grid_2 =      settings[companion+'_grid_'+inst],
-                                    ld_1 =        settings['host_ld_law_'+inst],
+                                    ld_1 =        settings[_c_host+'_ld_law_'+inst],
                                     ld_2 =        settings[companion+'_ld_law_'+inst],
-                                    shape_1 =     settings['host_shape_'+inst],
+                                    shape_1 =     settings[_c_host+'_shape_'+inst],
                                     shape_2 =     settings[companion+'_shape_'+inst],
-                                    spots_1 =     params['host_spots_'+inst], 
+                                    spots_1 =     params[_c_host+'_spots_'+inst], 
                                     spots_2 =     params[companion+'_spots_'+inst], 
                                     exact_grav =  settings['exact_grav'],
                                     verbose =     False
@@ -709,7 +731,20 @@ def flux_subfct_flares(params, inst, companion, xx=None, settings=None, return_f
             #::: use per-flare host star dilution if in binary mode, else fall back to per-instrument
             _flare_host = settings['flare_host'].get(i, 'host_A')
             _fdil_key = 'dil_'+_flare_host+'_'+inst if ('dil_'+_flare_host+'_'+inst in params and params['dil_'+_flare_host+'_'+inst] is not None) else 'dil_'+inst
-            model_flux += (1.-params[_fdil_key]) * aflare1(xx, params['flare_tpeak_'+str(i)], params['flare_fwhm_'+str(i)], params['flare_ampl_'+str(i)], upsample=True, uptime=10)
+            #::: per-instrument amplitude: 'flare_ampl_N_FILTER' (if present) else shared 'flare_ampl_N'
+            #::: filter label (e.g. 'u') is looked up from inst_filter; falls back to full inst name
+            _filt = settings.get('inst_filter', {}).get(inst, inst)
+            _ampl_key_inst   = 'flare_ampl_'+str(i)+'_'+_filt
+            _ampl_key_shared = 'flare_ampl_'+str(i)
+            if _ampl_key_inst in params and params[_ampl_key_inst] is not None:
+                _ampl = params[_ampl_key_inst]
+            elif _ampl_key_shared in params and params[_ampl_key_shared] is not None:
+                _ampl = params[_ampl_key_shared]
+            else:
+                raise KeyError("No flare amplitude found for flare "+str(i)+". "
+                               "Define either '"+_ampl_key_inst+"' (per-filter) "
+                               "or '"+_ampl_key_shared+"' (shared) in params.csv.")
+            model_flux += (1.-params[_fdil_key]) * aflare1(xx, params['flare_tpeak_'+str(i)], params['flare_fwhm_'+str(i)], _ampl, upsample=True, uptime=10)
     
     
     #-------------------------------------------------------------------------- 
@@ -1086,8 +1121,13 @@ def calculate_external_priors(params):
     lnp = 0.        
     
     #::: stellar density prior
-    if (config.BASEMENT.settings['use_host_density_prior'] is True) \
-        and ('host_density' in config.BASEMENT.external_priors):
+    _use_density = config.BASEMENT.settings['use_host_density_prior'] is True
+    _has_density_single = 'host_density' in config.BASEMENT.external_priors
+    _has_density_A      = 'host_A_density' in config.BASEMENT.external_priors
+    _has_density_B      = 'host_B_density' in config.BASEMENT.external_priors
+    _has_density_binary = _has_density_A or _has_density_B
+
+    if _use_density and (_has_density_single or _has_density_binary):
             
         for companion in config.BASEMENT.settings['companions_phot']:
             '''
@@ -1095,8 +1135,17 @@ def calculate_external_priors(params):
             can be directly compared with the stellar density computed from the orbital motions (see e.g. Winn 2010)
             '''
             if params[companion+'_host_density'] is not None:
-                    
-                b = config.BASEMENT.external_priors['host_density']
+
+                # Binary host support: pick the right density prior key
+                _c_host = config.BASEMENT.settings.get('companion_host', {}).get(companion, 'host_A')
+                if _has_density_binary:
+                    _density_key = _c_host + '_density'   # 'host_A_density' or 'host_B_density'
+                    if _density_key not in config.BASEMENT.external_priors:
+                        continue  # no prior registered for this host
+                else:
+                    _density_key = 'host_density'
+
+                b = config.BASEMENT.external_priors[_density_key]
                 if b[0] == 'uniform':
                     if not (b[1] <= params[companion+'_host_density'] <= b[2]): return -np.inf
                 elif b[0] == 'normal':
