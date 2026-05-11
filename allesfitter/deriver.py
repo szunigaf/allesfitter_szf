@@ -554,24 +554,25 @@ def derive(samples, mode):
         labels.append( 'Equilibrium temperature '+companion+'; $T_\mathrm{eq;'+companion+'}$ (K)' )
         
         for inst in config.BASEMENT.settings['inst_phot']:
+            inst_tex = inst.replace('_', r'\_')  # escape underscores for LaTeX inside \mathrm{}
             
             names.append( companion+'_depth_tr_undil_'+inst )
-            labels.append( 'Transit depth (undil.) '+companion+'; $\delta_\mathrm{tr; undil; '+companion+'; '+inst+'}$ (ppt)' )
+            labels.append( 'Transit depth (undil.) '+companion+'; $\delta_\mathrm{tr; undil; '+companion+'; '+inst_tex+'}$ (ppt)' )
             
             names.append( companion+'_depth_tr_dil_'+inst )
-            labels.append( 'Transit depth (dil.) '+companion+'; $\delta_\mathrm{tr; dil; '+companion+'; '+inst+'}$ (ppt)' )
+            labels.append( 'Transit depth (dil.) '+companion+'; $\delta_\mathrm{tr; dil; '+companion+'; '+inst_tex+'}$ (ppt)' )
         
             names.append( companion+'_depth_occ_undil_'+inst )
-            labels.append( 'Occultation depth (undil.) '+companion+'; $\delta_\mathrm{occ; undil; '+companion+'; '+inst+'}$ (ppt)' )
+            labels.append( 'Occultation depth (undil.) '+companion+'; $\delta_\mathrm{occ; undil; '+companion+'; '+inst_tex+'}$ (ppt)' )
             
             names.append( companion+'_depth_occ_dil_'+inst )
-            labels.append( 'Occultation depth (dil.) '+companion+'; $\delta_\mathrm{occ; dil; '+companion+'; '+inst+'}$ (ppt)' )
+            labels.append( 'Occultation depth (dil.) '+companion+'; $\delta_\mathrm{occ; dil; '+companion+'; '+inst_tex+'}$ (ppt)' )
             
             names.append( companion+'_nightside_flux_undil_'+inst )
-            labels.append( 'Nightside flux (undil.)'+companion+'; $F_\mathrm{nightside; undil; '+companion+'; '+inst+'}$ (ppt)' )
+            labels.append( 'Nightside flux (undil.)'+companion+'; $F_\mathrm{nightside; undil; '+companion+'; '+inst_tex+'}$ (ppt)' )
             
             names.append( companion+'_nightside_flux_dil_'+inst )
-            labels.append( 'Nightside flux (dil.)'+companion+'; $F_\mathrm{nightside; dil; '+companion+'; '+inst+'}$ (ppt)' )
+            labels.append( 'Nightside flux (dil.)'+companion+'; $F_\mathrm{nightside; dil; '+companion+'; '+inst_tex+'}$ (ppt)' )
             
             
             
@@ -580,31 +581,31 @@ def derive(samples, mode):
             for other_companion in companions:
                 if other_companion is not companion:
                     names.append( companion+'_period/'+other_companion+'_period' )
-                    labels.append( 'Period ratio; $P_\mathrm{'+companion+'} / P_\mathrm{'+other_companion+'}$' )
-           
+                    labels.append( 'Period ratio; $P_\mathrm{'+companion+'} / P_\mathrm{'+other_companion+'}$' )           
             
     #::: host
-    for inst in config.BASEMENT.settings['inst_all']:    
+    for inst in config.BASEMENT.settings['inst_all']:
+        inst_tex = inst.replace('_', r'\_')  # escape underscores for LaTeX inside \mathrm{}
         if config.BASEMENT.settings['host_ld_law_'+inst] is None:
             pass
             
         elif config.BASEMENT.settings['host_ld_law_'+inst] == 'lin':
             names.append( 'host_ldc_u1_'+inst )
-            labels.append( 'Limb darkening; $u_\mathrm{1; '+inst+'}$' )
+            labels.append( 'Limb darkening; $u_\mathrm{1; '+inst_tex+'}$' )
             
         elif config.BASEMENT.settings['host_ld_law_'+inst] == 'quad':
             names.append( 'host_ldc_u1_'+inst )
-            labels.append( 'Limb darkening; $u_\mathrm{1; '+inst+'}$' )
+            labels.append( 'Limb darkening; $u_\mathrm{1; '+inst_tex+'}$' )
             names.append( 'host_ldc_u2_'+inst )
-            labels.append( 'Limb darkening; $u_\mathrm{2; '+inst+'}$' )
+            labels.append( 'Limb darkening; $u_\mathrm{2; '+inst_tex+'}$' )
             
         elif config.BASEMENT.settings['host_ld_law_'+inst] == 'sing':
             names.append( 'host_ldc_u1_'+inst )
-            labels.append( 'Limb darkening; $u_\mathrm{1; '+inst+'}$' )
+            labels.append( 'Limb darkening; $u_\mathrm{1; '+inst_tex+'}$' )
             names.append( 'host_ldc_u2_'+inst )
-            labels.append( 'Limb darkening; $u_\mathrm{2; '+inst+'}$' )
+            labels.append( 'Limb darkening; $u_\mathrm{2; '+inst_tex+'}$' )
             names.append( 'host_ldc_u3_'+inst )
-            labels.append( 'Limb darkening; $u_\mathrm{3; '+inst+'}$' )
+            labels.append( 'Limb darkening; $u_\mathrm{3; '+inst_tex+'}$' )
             
         else:
             raise ValueError("Currently only 'none', 'lin', 'quad' and 'sing' limb darkening are supported.")
