@@ -39,6 +39,8 @@ conda install -c conda-forge llvmlite numba gfortran -y
 pip install tqdm \
             celerite \
             dynesty \
+            emcee \
+            corner \
             rebound \
             transitleastsquares \
             seaborn \
@@ -59,8 +61,19 @@ pip install wotan --no-deps
 
 ```bash
 git clone https://github.com/pmaxted/ellc.git /tmp/ellc
-pip install /tmp/ellc --no-deps --no-build-isolation
+cd /tmp/ellc
+
+# Build the Fortran library explicitly (more reliable than pip install)
+python setup.py build_ext --inplace
+python setup.py install
 ```
+
+> **Verify the Fortran library was compiled:**
+> ```bash
+> find $HOME/miniconda3/envs/allesfitter -name "libellc.so"
+> # Must return a path — if empty, the build failed silently
+> ```
+> If empty, check that `which gfortran` points to the conda environment's gfortran, then retry.
 
 ---
 
@@ -156,6 +169,8 @@ These packages are not listed as explicit dependencies in `setup.py` but are req
 | `numba` | conda-forge | Must be installed via conda, not pip |
 | `gfortran` | conda-forge | Required to compile `ellc`'s Fortran library |
 | `ellc` | GitHub source build | Must be built from source; pip wheel lacks `libellc.so` |
+| `emcee` | pip | MCMC sampler (required at import time) |
+| `corner` | pip | Corner plots (required at import time) |
 | `tqdm` | pip | Progress bars |
 | `celerite` | pip | Gaussian Process models |
 | `dynesty` | pip | Nested sampling |
